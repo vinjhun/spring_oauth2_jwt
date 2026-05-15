@@ -11,7 +11,7 @@ export function App() {
   const session = useSession();
 
   if (session.isLoading) {
-    return <main className="grid min-h-screen place-items-center">Loading workspace</main>;
+    return <main className="grid min-h-screen place-items-center bg-surface text-onSurface">Loading workspace</main>;
   }
 
   if (!session.user) {

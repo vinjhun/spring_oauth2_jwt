@@ -5,10 +5,21 @@
 :root {
   --md-sys-color-primary: 0 104 116;
   --md-sys-color-on-primary: 255 255 255;
-  --md-sys-color-surface: 250 252 252;
+  --md-sys-color-secondary: 48 99 102;
+  --md-sys-color-surface: 244 248 247;
   --md-sys-color-on-surface: 25 28 29;
-  --md-sys-color-surface-variant: 219 228 230;
-  --md-sys-color-outline: 111 121 123;
+  --md-sys-color-surface-container: 255 255 255;
+  --md-sys-color-surface-variant: 230 239 238;
+  --md-sys-color-outline: 103 121 123;
+  --md-sys-color-sidebar: 17 60 63;
+  --md-sys-color-on-sidebar: 237 249 248;
+  --md-sys-color-success: 31 107 88;
+  --md-sys-color-success-container: 225 244 239;
+  --md-sys-color-warning: 138 90 0;
+  --md-sys-color-warning-container: 255 241 214;
+  --md-sys-color-danger: 174 32 32;
+  --md-sys-color-danger-container: 255 235 235;
+  color-scheme: light;
   color: rgb(var(--md-sys-color-on-surface));
   background: rgb(var(--md-sys-color-surface));
   font-family:
@@ -16,8 +27,29 @@
     sans-serif;
 }
 
+:root[data-theme='dark'] {
+  --md-sys-color-primary: 128 224 233;
+  --md-sys-color-on-primary: 0 55 62;
+  --md-sys-color-secondary: 141 203 205;
+  --md-sys-color-surface: 18 18 18;
+  --md-sys-color-on-surface: 232 238 238;
+  --md-sys-color-surface-container: 31 37 38;
+  --md-sys-color-surface-variant: 43 52 53;
+  --md-sys-color-outline: 154 170 172;
+  --md-sys-color-sidebar: 12 33 35;
+  --md-sys-color-on-sidebar: 226 246 246;
+  --md-sys-color-success: 128 219 179;
+  --md-sys-color-success-container: 20 58 48;
+  --md-sys-color-warning: 255 204 119;
+  --md-sys-color-warning-container: 70 50 20;
+  --md-sys-color-danger: 255 180 180;
+  --md-sys-color-danger-container: 82 32 32;
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
 }
 
 button,
@@ -27,3 +59,6 @@ select {
   font: inherit;
 }
 
+::selection {
+  background: rgb(var(--md-sys-color-primary) / 0.18);
+}
