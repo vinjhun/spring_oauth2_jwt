@@ -14,11 +14,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/login': {
-        target: 'http://localhost:8080',
+      '/auth': {
+        target: 'http://localhost:9000',
         changeOrigin: true,
+        rewrite: (path) => (path === '/auth/login' ? '/login' : path),
       },
     },
   },
 });
-

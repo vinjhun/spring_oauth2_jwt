@@ -17,6 +17,9 @@ $AppPatterns = @(
     "com.example.cms.resource.CmsResourceServiceApplication",
     "com.example.cms.common.CommonServiceApplication",
     "vite --host 127.0.0.1",
+    "vite --host localhost",
+    "frontend\node_modules\vite",
+    "vite\bin\vite.js",
     "spring-boot:run"
 )
 

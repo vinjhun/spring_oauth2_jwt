@@ -2,6 +2,7 @@ package com.example.cms.authorization.config;
 
 import java.time.Duration;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -44,12 +45,20 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain defaultSecurityFilterChain(
+            HttpSecurity http,
+            @Value("${cms.auth.post-login-authorization-url:http://localhost:5173/oauth2/authorization/cms-bff}") String postLoginAuthorizationUrl)
+            throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/.well-known/jwks.json", "/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/auth/csrf").permitAll()
                         .anyRequest().authenticated())
-                .formLogin(Customizer.withDefaults())
+                .formLogin(login -> login
+                        .loginPage("/login")
+                        .loginProcessingUrl("/login")
+                        .defaultSuccessUrl(postLoginAuthorizationUrl)
+                        .permitAll())
                 .build();
     }
 
@@ -105,4 +114,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-

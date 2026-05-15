@@ -18,6 +18,24 @@ This workspace contains a Spring Boot microservices CMS scaffold with a React SP
 - Common service: `http://localhost:8082`
 - Frontend: `http://localhost:5173`
 
+## Quick Start
+
+Load the portable toolchain, start the stack, then open the React login page:
+
+```powershell
+. .\scripts\dev-env.ps1
+.\scripts\start-local-stack.ps1 -NoTail
+```
+
+Open `http://localhost:5173/login` and sign in with one of the local users:
+
+| User | Password | Roles |
+| --- | --- | --- |
+| `admin@example.com` | `password` | `ADMIN`, `MEMBER` |
+| `member@example.com` | `password` | `MEMBER` |
+
+The login form is rendered by React. Spring Security still validates the credentials and continues the OAuth2 authorization-code flow.
+
 ## Key Material
 
 Generate a local PKCS12 keystore for the authorization service:
@@ -58,6 +76,26 @@ npm install
 npm run build
 ```
 
+Recommended local startup is the `start-local-stack.ps1` script:
+
+```powershell
+.\scripts\start-local-stack.ps1
+```
+
+This generates the local development keystore if missing, cleanly restarts all services, writes logs to `.run/`, and streams logs to the current console. Use `-NoTail` when you want startup to finish without keeping the console attached:
+
+```powershell
+.\scripts\start-local-stack.ps1 -NoTail
+```
+
+In IntelliJ, add a PowerShell/Shell run configuration with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-local-stack.ps1
+```
+
+IntelliJ will show the tailed logs in its Run tool window. Log files remain available locally under `.run/`.
+
 Start the backend services in separate terminals:
 
 ```powershell
@@ -73,7 +111,13 @@ Start the frontend:
 .\scripts\start-frontend.ps1
 ```
 
-For production-like BFF Redis sessions, run the BFF with Maven profile `redis-session` and set `SESSION_STORE_TYPE=redis`, `REDIS_HEALTH_ENABLED=true`, and the Redis host/port environment variables.
+For production-like BFF Redis sessions, start Redis and run:
+
+```powershell
+.\scripts\start-bff-gateway-service-redis.ps1
+```
+
+This uses Maven profile `redis-session`, sets `SESSION_STORE_TYPE=redis`, enables Redis health checks, and reads `REDIS_HOST` / `REDIS_PORT`. Details are documented in [docs/bff-redis-session-spec.md](docs/bff-redis-session-spec.md).
 
 Or start everything in the background:
 
@@ -91,6 +135,20 @@ Stop background services:
 
 The browser receives only the BFF session cookie. OAuth2 access and refresh tokens are stored in the server-side BFF session and are relayed to resource services by the BFF.
 
+In local development, the frontend also proxies authentication form traffic:
+
+| Browser URL | Dev proxy target | Purpose |
+| --- | --- | --- |
+| `GET /auth/csrf` | `http://localhost:9000/auth/csrf` | Load Spring Security's CSRF form token. |
+| `POST /auth/login` | `http://localhost:9000/login` | Submit React login form credentials to Spring Security. |
+| `GET /oauth2/authorization/cms-bff` | `http://localhost:8080/oauth2/authorization/cms-bff` | Start or continue the BFF OAuth2 login flow. |
+
+Keep the React form action same-origin (`/auth/login`) during local development. Posting directly to `http://localhost:9000/login` from `http://localhost:5173` will trigger browser CORS/cookie problems.
+
 ## Flow Documentation
 
 The frontend login, post-login APIs, JWT signing, JWKS publication, BFF token relay, and resource-server JWT validation flow are documented in [docs/authentication-flow.md](docs/authentication-flow.md).
+
+The tested OAuth2/BFF scenarios and verification notes are recorded in [docs/oauth2-bff-test-cases.md](docs/oauth2-bff-test-cases.md).
+
+A shorter localhost-tested walkthrough is available in [docs/bff-authentication-walkthrough.md](docs/bff-authentication-walkthrough.md).
