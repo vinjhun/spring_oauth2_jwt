@@ -3,6 +3,7 @@ import { Shell } from './Shell';
 import { ArticlesPage } from '../features/articles/ArticlesPage';
 import { PointsPage } from '../features/points/PointsPage';
 import { TextEntriesPage } from '../features/messages/TextEntriesPage';
+import { AccountAccessPage } from '../features/auth/AccountAccessPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { useSession } from '../features/auth/useSession';
 
@@ -14,7 +15,14 @@ export function App() {
   }
 
   if (!session.user) {
-    return <LoginPage />;
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<AccountAccessPage kind="forgot-password" />} />
+        <Route path="/register" element={<AccountAccessPage kind="register" />} />
+        <Route path="/email-confirmation" element={<AccountAccessPage kind="email-confirmation" />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
   }
 
   return (
@@ -29,4 +37,3 @@ export function App() {
     </Shell>
   );
 }
-

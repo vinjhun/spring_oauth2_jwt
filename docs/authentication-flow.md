@@ -2,6 +2,16 @@
 
 This document records the CMS v1 browser login flow, the APIs used after login, and the core backend mechanisms that keep OAuth2 tokens out of browser storage.
 
+## Ownership Boundaries
+
+| Concern | Owner | Notes |
+| --- | --- | --- |
+| Login page UI | React SPA | `frontend/src/features/auth/LoginPage.tsx` renders email/password fields and future account-flow links. |
+| Credential validation | Authorization service | Spring Security still processes `POST /login`; React never validates credentials as an authority. |
+| OAuth2 client session | BFF gateway | The BFF owns the browser session and stores OAuth2 authorized-client state server-side. |
+| Resource API access | BFF gateway | The browser calls `/api/**`; the BFF relays access tokens to resource services. |
+| JWT validation | Resource services | Resource services validate issuer, signature, expiry, scopes, and role claims. |
+
 ## Login And API Flow
 
 ```mermaid
@@ -14,11 +24,14 @@ sequenceDiagram
     participant CMS as CMS Resource Service (localhost:8081)
     participant Common as Common Service (localhost:8082)
 
-    User->>SPA: Click Sign in
+    User->>SPA: Open /login
+    SPA->>Auth: GET /auth/csrf through frontend proxy
+    Auth-->>SPA: CSRF form parameter + token
+    User->>SPA: Enter email and password
+    SPA->>Auth: POST /auth/login through frontend proxy
+    Auth-->>SPA: Redirect /oauth2/authorization/cms-bff after form login
     SPA->>BFF: GET /oauth2/authorization/cms-bff
-    BFF->>Auth: Redirect to /oauth2/authorize
-    Auth->>User: GET /login
-    User->>Auth: POST /login
+    BFF->>Auth: Redirect /oauth2/authorize
     Auth->>BFF: Redirect /login/oauth2/code/cms-bff?code=...
     BFF->>Auth: POST /oauth2/token
     Auth-->>BFF: access_token + refresh_token
@@ -58,12 +71,76 @@ sequenceDiagram
 | SPA -> BFF | `GET /api/me` | Load authenticated user details. |
 | SPA -> BFF | `GET /api/csrf` | Load CSRF header/token for unsafe BFF calls. |
 | SPA -> BFF | `POST /api/logout` | Invalidate the BFF session. |
+| SPA -> Authorization service | `GET /auth/csrf` | Load CSRF form parameter/token for the React-rendered login form. In local dev this is proxied by Vite to `http://localhost:9000/auth/csrf`. |
+| SPA -> Authorization service | `POST /auth/login` | Submit username/password through the frontend proxy to Spring Security's `/login` processor. In local dev Vite rewrites `/auth/login` to `http://localhost:9000/login`. |
 | SPA -> BFF -> CMS | `GET /api/cms/articles` | List published CMS articles. |
 | SPA -> BFF -> CMS | `GET /api/cms/me/points` | Load current member point balance. |
 | SPA -> BFF -> CMS | `GET /api/cms/me/point-transactions` | Load current member point transactions. |
 | SPA -> BFF -> Common | `GET /api/common/messages?locale=en` | Load message text entries. |
 | SPA -> BFF -> Common | `GET /api/common/labels?locale=en` | Load label text entries. |
 | Resource services -> Authorization service | `GET /.well-known/jwks.json` | Retrieve public signing keys for JWT validation. |
+
+## React Login Details
+
+The React login page keeps authentication traffic same-origin from the browser's perspective:
+
+```tsx
+fetch('/auth/csrf', { credentials: 'include' })
+
+<form action="/auth/login" method="post">
+  <input type="hidden" name={csrf.parameterName} value={csrf.token} />
+  ...
+</form>
+```
+
+This avoids CORS and cookie-scope issues that appear when a page served from `http://localhost:5173` posts directly to `http://localhost:9000/login`.
+
+The authorization service exposes two small helpers for the React page:
+
+| Source | Responsibility |
+| --- | --- |
+| `authorization-service/src/main/java/com/example/cms/authorization/auth/AuthCsrfController.java` | Returns Spring Security's CSRF parameter name, header name, and token. |
+| `authorization-service/src/main/java/com/example/cms/authorization/auth/AuthPageController.java` | Redirects authorization-service `GET /login` requests back to the React `/login` page. |
+
+The authorization service still owns the actual form authentication:
+
+```java
+.formLogin(login -> login
+        .loginPage("/login")
+        .loginProcessingUrl("/login")
+        .defaultSuccessUrl(postLoginAuthorizationUrl)
+        .permitAll())
+```
+
+If no saved OAuth2 authorization request exists, a successful form login falls back to `http://localhost:5173/oauth2/authorization/cms-bff`, which starts the BFF authorization-code flow.
+
+## Tested Local Flow
+
+The OAuth2/BFF mechanism was verified on 2026-05-15 at 15:54:11 +08:00 against the local stack:
+
+| Service | URL |
+| --- | --- |
+| React SPA | `http://localhost:5173` |
+| BFF gateway | `http://localhost:8080` |
+| Authorization service | `http://localhost:9000` |
+| CMS resource service | `http://localhost:8081` |
+| Common service | `http://localhost:8082` |
+
+The tested happy path used `admin@example.com` / `password`:
+
+1. `GET /api/session` returned `authenticated=false`.
+2. `GET /auth/csrf` returned Spring Security login CSRF metadata with parameter `_csrf`.
+3. `POST /auth/login` with valid credentials returned `302` to `http://localhost:5173/oauth2/authorization/cms-bff`.
+4. Following the BFF authorization start completed the authorization-code callback and established the BFF session.
+5. `GET /api/session` returned `authenticated=true` with user `admin@example.com`.
+6. `GET /api/me` returned the BFF user summary with OIDC and scope authorities, including `SCOPE_cms.read`.
+7. `GET /api/cms/articles`, `GET /api/cms/me/points`, and `GET /api/common/messages?locale=en` returned `200`, proving the BFF relayed the access token to both resource services.
+8. `POST /api/logout` with the BFF CSRF header returned `204`.
+9. `GET /api/session` returned `authenticated=false` after logout.
+
+The tested negative path posted `admin@example.com` with an invalid password and returned `302` to `/login?error`.
+
+Use the same browser host throughout the flow. `localhost` and `127.0.0.1` are different cookie hosts; mixing them can make the authorization service login succeed while the BFF session still appears anonymous.
 
 ## JWT Validation Flow
 

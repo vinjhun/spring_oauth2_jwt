@@ -87,7 +87,27 @@ If Vite/esbuild fails with a Windows sandbox access error while reading config, 
 
 ## Running The App
 
-Generate a disposable local keystore if needed:
+Recommended local startup:
+
+```powershell
+.\scripts\start-local-stack.ps1
+```
+
+This generates the local development keystore if missing, cleanly restarts all services, writes logs to `.run/`, and streams logs to the current console for IntelliJ Run tool window visibility.
+
+Use this IntelliJ PowerShell/Shell command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-local-stack.ps1
+```
+
+Use `-NoTail` for non-interactive startup:
+
+```powershell
+.\scripts\start-local-stack.ps1 -NoTail
+```
+
+Generate a disposable local keystore manually if needed:
 
 ```powershell
 .\scripts\generate-dev-keystore.ps1
@@ -106,6 +126,14 @@ Stop background services:
 ```
 
 Individual service scripts are also available in `scripts/`.
+
+Run the BFF with Redis-backed Spring Session:
+
+```powershell
+.\scripts\start-bff-gateway-service-redis.ps1
+```
+
+This requires Redis to be reachable through `REDIS_HOST` and `REDIS_PORT`. See [bff-redis-session-spec.md](bff-redis-session-spec.md).
 
 ## Credentials For Local Development
 
@@ -146,6 +174,7 @@ Avoid simplifying:
 When changing login, JWKS, JWT claims, BFF proxying, resource-server security, or post-login API routes, update:
 
 - [authentication-flow.md](authentication-flow.md)
+- [bff-redis-session-spec.md](bff-redis-session-spec.md) when BFF session storage changes
 - `README.md` when setup or command usage changes
 
 Then run `mvn test` and `npm run build`.
